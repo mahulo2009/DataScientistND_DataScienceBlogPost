@@ -14,10 +14,19 @@ class webreport_api(object):
         self.magnitudes = []
         self.page = 0
 
+    def set_monitor(self,monitor_ids):
+        self.monitors = monitor_ids
+
+    def set_date_range(self,date_ini,date_fin):
+        self.date_ini=date_ini
+        self.date_fin=date_fin
+
+
     def add_date_range(self,date_ini,date_fin):
         self.date_ini=date_ini
         self.date_fin=date_fin
-        
+
+
     def add_monitor(self,monitor_id):
         self.monitors.append(monitor_id)
 
