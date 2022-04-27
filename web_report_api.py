@@ -17,6 +17,9 @@ class webreport_api(object):
     def set_monitor(self,monitor_ids):
         self.monitors = monitor_ids
 
+    def set_magnitud(self, magnitud_ids):
+        self.magnitudes = magnitud_ids
+
     def set_date_range(self,date_ini,date_fin):
         self.date_ini=date_ini
         self.date_fin=date_fin
