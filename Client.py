@@ -4,7 +4,9 @@ import requests
 import re
 import math
 
-_DEFAULT_BASE_URL = "http://calp-vwebrepo:8081/WebReport/rest/webreport/download"
+from numpy import finfo
+
+_DEFAULT_BASE_URL = "http://calp-vwebrepo:8081/WebReport/rest/webreport"
 _DEFAULT_SAMPLES_PER_PAGE = 30000
 
 _QUERY_MONITOR_TOKEN = "idmonitor"
@@ -12,16 +14,94 @@ _QUERY_MAGNITUDE_TOKEN = "idmagnitud"
 _QUERY_PAGE_START_TOKEN = "iDisplayStart"
 _QUERY_PAGE_LENGTH_TOKEN = "iDisplayLength"
 
+query = {
+    'search':
+        {
+            'date_ini': datetime(2021, 3, 1, 20, 0, 0),
+            'date_end': datetime(2021, 3, 1, 20, 0, 30),
+            'time_ini': time(20, 0, 0),
+            'time_end': time(7, 0, 0),
+            'days': 31
+        },
+
+    'monitors':
+        [
+            {
+                'id': 3623,
+                'name': 'MACS.AzimuthAxis.position',
+                'period': 200000,
+                'epsilon': 0.5
+            },
+            {
+                'id': 3625,
+                'name': 'MACS.AzimuthAxis.followingError',
+                'period': 200000,
+                'epsilon': 0.00002
+            },
+            {
+                'id': 3696,
+                'name': 'MACS.ElevationAxis.position',
+                'period': 200000,
+                'epsilon': 0.5
+            },
+            {
+                'id': 12128,
+                'name': 'ECS.UpperShutter.actualPosition',
+                'period': 1000000,
+                'epsilon': 0.5
+            },
+            {
+                'id': 667,
+                'name': 'ECS.DomeRotation.actualPosition',
+                'period': 1000000,
+                'epsilon': 0.5
+            },
+            {
+                'id': 8264,
+                'name': 'EMCS.WeatherStation.meanWindSpeed',
+                'period': 1000000,
+                'epsilon': 1.0
+            },
+            {
+                'id': 8265,
+                'name': 'EMCS.WeatherStation.windDirection',
+                'period': 1000000,
+                'epsilon': 1.0
+            },
+            {
+                'id': 8116,
+                'name': 'OE.ObservingEngine.slowGuideErrorA',
+                'period': 1000000,
+                'epsilon': 0.01
+            },
+            {
+                'id': 8117,
+                'name': 'OE.ObservingEngine.slowGuideErrorB',
+                'period': 1000000,
+                'epsilon': 0.01
+            }
+        ],
+
+    'magnitudes':
+        [
+            {
+                'id': 4238,
+                'name': 'OE.ObservingEngine.currentObservingState',
+            }
+        ]
+
+}
+
 
 def _parse_raw_test(text):
     text = text.split('\n')
 
     text_header = ','.join(text[0].replace("/", ".").split(",")[1:])
+    #todo extract this info to metadata monitor
+    text_header = re.sub("\(.*\)", "", text_header)
 
-    text_body = [re.sub('-$', '', line) for line in text[1:]]
-    text_body = [re.sub('-[^(\d)]', ',', line) for line in text_body]
-    text_body = [','.join(line.split(",")[1:]) for line in text_body]
 
+    text_body = [','.join(line.split(",")[1:]) for line in text[1:]]
     text_body = '\n'.join(text_body)
 
     return text_header, text_body
@@ -42,8 +122,8 @@ class Cursor(object):
         if self._current >= self._pages:
             raise StopIteration
 
-        final_uri = self.url_base + \
-                    "&" + _QUERY_PAGE_START_TOKEN + "=" + str(self._current * _DEFAULT_SAMPLES_PER_PAGE) + \
+        final_uri = self.url_base + "/download" + \
+                    "&" + _QUERY_PAGE_START_TOKEN + "=" + str(self._current) + \
                     "&" + _QUERY_PAGE_LENGTH_TOKEN + "=" + str(_DEFAULT_SAMPLES_PER_PAGE)
 
         self._current += 1
@@ -138,93 +218,25 @@ class Client(object):
 
         return cursor
 
+    def get(self, component, monitor):
+
+        final_uri = self.base_url + \
+                    "/components/" + component + \
+                    "/monitors/" + monitor
+
+        print(final_uri)
+
 
 if __name__ == "__main__":
 
-    query = {
-        'search':
-            {
-                'date_ini': datetime(2021, 3, 1, 20, 0, 0),
-                'date_end': datetime(2021, 3, 1, 20, 0, 30),
-                'time_ini': time(20, 0, 0),
-                'time_end': time(7, 0, 0),
-                'days': 31
-            },
-
-        'monitors':
-            [
-                {
-                    'id': 3623,
-                    'name': 'MACS.AzimuthAxis.position',
-                    'period': 200000,
-                    'epsilon': 0.5
-                },
-                {
-                    'id': 3625,
-                    'name': 'MACS.AzimuthAxis.followingError',
-                    'period': 200000,
-                    'epsilon': 0.00002
-                },
-                {
-                    'id': 3696,
-                    'name': 'MACS.ElevationAxis.position',
-                    'period': 200000,
-                    'epsilon': 0.5
-                },
-                {
-                    'id': 12128,
-                    'name': 'ECS.UpperShutter.actualPosition',
-                    'period': 1000000,
-                    'epsilon': 0.5
-                },
-                {
-                    'id': 667,
-                    'name': 'ECS.DomeRotation.actualPosition',
-                    'period': 1000000,
-                    'epsilon': 0.5
-                },
-                {
-                    'id': 8264,
-                    'name': 'EMCS.WeatherStation.meanWindSpeed',
-                    'period': 1000000,
-                    'epsilon': 1.0
-                },
-                {
-                    'id': 8265,
-                    'name': 'EMCS.WeatherStation.windDirection',
-                    'period': 1000000,
-                    'epsilon': 1.0
-                },
-                {
-                    'id': 8116,
-                    'name': 'OE.ObservingEngine.slowGuideErrorA',
-                    'period': 1000000,
-                    'epsilon': 0.01
-                },
-                {
-                    'id': 8117,
-                    'name': 'OE.ObservingEngine.slowGuideErrorB',
-                    'period': 1000000,
-                    'epsilon': 0.01
-                }
-            ],
-
-        'magnitudes':
-            [
-                {
-                    'id': 4238,
-                    'name': 'OE.ObservingEngine.currentObservingState',
-                }
-            ]
-
-    }
 
     client = Client()
-    cursor = client.execute(query['search']['date_ini'],
-                            query['search']['date_end'],
-                            query, index=0, index_type="monitors")
-    for r in cursor:
-        print(r)
+    client.get("MACS/AzimuthAxis","position")
+    #cursor = client.execute(query['search']['date_ini'],
+    #                        query['search']['date_end'],
+    #                        query, index=0, index_type="monitors")
+    #for r in cursor:
+    #    print(r)
 
     # print(client._parse_search(query['search']))
     # print(client._parse_monitors(query['monitors']))

@@ -1,0 +1,76 @@
+{
+    "search":
+        {
+            "date_ini": "2022-03-01",
+            "date_end": "2022-03-31",
+            "time_ini": "20:00:00",
+            "time_end": "07:00:00"
+        },
+
+    "monitors":
+        [
+            {
+                "id": 3623,
+                "name": "MACS.AzimuthAxis.position",
+                "period": 200000,
+                "epsilon": 0.5
+            },
+            {
+                "id": 3625,
+                "name": "MACS.AzimuthAxis.followingError",
+                "period": 200000,
+                "epsilon": 0.00002
+            },
+            {
+                "id": 3696,
+                "name": "MACS.ElevationAxis.position",
+                "period": 200000,
+                "epsilon": 0.5
+            },
+            {
+                "id": 12128,
+                "name": "ECS.UpperShutter.actualPosition",
+                "period": 1000000,
+                "epsilon": 0.5
+            },
+            {
+                "id": 667,
+                "name": "ECS.DomeRotation.actualPosition",
+                "period": 1000000,
+                "epsilon": 0.5
+            },
+            {
+                "id": 8264,
+                "name": "EMCS.WeatherStation.meanWindSpeed",
+                "period": 1000000,
+                "epsilon": 0.5
+            },
+            {
+                "id": 8265,
+                "name": "EMCS.WeatherStation.windDirection",
+                "period": 1000000,
+                "epsilon": 1.0
+            },
+            {
+                "id": 8116,
+                "name": "OE.ObservingEngine.slowGuideErrorA",
+                "period": 1000000,
+                "epsilon": 4.8e-07
+            },
+            {
+                "id": 8117,
+                "name": "OE.ObservingEngine.slowGuideErrorB",
+                "period": 1000000,
+                "epsilon": 4.8e-07
+            }
+        ],
+
+    "magnitudes":
+        [
+            {
+                "id": 4238,
+                "name": "OE.ObservingEngine.currentObservingState"
+            }
+        ]
+
+}

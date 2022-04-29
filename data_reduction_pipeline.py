@@ -5,107 +5,36 @@ from Client import Client
 from datetime import timedelta, datetime, time
 import pandas as pd
 import io
+import os
+import re
 from os.path import exists
 import glob
-
-query = {
-    'search':
-        {
-            'date_ini': datetime(2021, 3, 1, 22, 0, 0),
-            'date_end': datetime(2021, 3, 2, 6, 0, 0),
-            'time_ini': time(20, 0, 0),
-            'time_end': time(7, 0, 0),
-            'days': 1
-        },
-
-    'monitors':
-        [
-            {
-                'id': 3623,
-                'name': 'MACS.AzimuthAxis.position',
-                'period': 200000,
-                'epsilon': 0.5
-            },
-            {
-                'id': 3625,
-                'name': 'MACS.AzimuthAxis.followingError',
-                'period': 200000,
-                'epsilon': 0.00002
-            },
-            {
-                'id': 3696,
-                'name': 'MACS.ElevationAxis.position',
-                'period': 200000,
-                'epsilon': 0.5
-            },
-            {
-                'id': 12128,
-                'name': 'ECS.UpperShutter.actualPosition',
-                'period': 1000000,
-                'epsilon': 0.5
-            },
-            {
-                'id': 667,
-                'name': 'ECS.DomeRotation.actualPosition',
-                'period': 1000000,
-                'epsilon': 0.5
-            },
-            {
-                'id': 8264,
-                'name': 'EMCS.WeatherStation.meanWindSpeed',
-                'period': 1000000,
-                'epsilon': 0.5
-            },
-            {
-                'id': 8265,
-                'name': 'EMCS.WeatherStation.windDirection',
-                'period': 1000000,
-                'epsilon': 1.0
-            },
-            {
-                'id': 8116,
-                'name': 'OE.ObservingEngine.slowGuideErrorA',
-                'period': 1000000,
-                'epsilon': 4.8e-07
-            },
-            {
-                'id': 8117,
-                'name': 'OE.ObservingEngine.slowGuideErrorB',
-                'period': 1000000,
-                'epsilon': 4.8e-07
-            }
-        ],
-
-    'magnitudes':
-        [
-            {
-                'id': 4238,
-                'name': 'OE.ObservingEngine.currentObservingState',
-            }
-        ]
-
-}
-
+import argparse
+import json
 
 class DataReductionPipeline(object):
 
-    def __init__(self, path):
+    def __init__(self, query, name):
         self._client = Client()
-        self._path = path
 
+        self._path = os.path.expanduser("~") + "/.cache/webreport/" + name + "/"
+        self._query_data = query
 
-    def make_file_name(self, date_ini, date_end, id):
+    def make_file_name(self, date_ini, date_end, id,page=None):
 
-        logging.info('Check file with id = %s exits', id)
+        if not os.path.exists(self._path):
+            os.makedirs(self._path)
 
-        file_name = "filtered/" + \
-                    self._path + \
-                    str(id) + \
-                    "_" + \
-                    date_ini.strftime("%Y_%m_%d_%H_%M_%S") + \
-                    "_" + \
-                    date_end.strftime("%Y_%m_%d_%H_%M_%S") + \
-                    ".gz"
+        file_name_monitor = str(id) + \
+                            "_" + \
+                            date_ini.strftime("%Y_%m_%d_%H_%M_%S") + \
+                            "_" + \
+                            date_end.strftime("%Y_%m_%d_%H_%M_%S")
+
+        if page is None:
+            file_name = self._path + file_name_monitor + ".gz"
+        else:
+            file_name = self._path + file_name_monitor + "_raw_" + str(page) + ".gz"
 
         return file_name
 
@@ -130,9 +59,9 @@ class DataReductionPipeline(object):
 
         logging.info('Merging all files...')
 
-        logging.info("AAA %s","filtered/"+self._path + '*.gz')
-        file_names = glob.glob("filtered/"+self._path + '*.gz')
-
+        logging.info(self._path + "*.gz")
+        file_names = glob.glob(self._path + "*.gz")
+        file_names = [fn for fn in file_names if not "raw" in fn]
 
         data_frames = [pd.read_csv(filename) for filename in file_names]
 
@@ -143,33 +72,53 @@ class DataReductionPipeline(object):
                 data_frame = pd.merge(data_frame, data_frames[idx], how='outer')
 
         data_frame.sort_values(by=['TimeStampLong'], inplace=True)
+        data_frame.to_csv(self._path + "merge_samples.gz", compression='infer',index=False)
 
         return data_frame
 
+    def retrieve_all_samples(self):
 
-    def retrieve_all_samples(self, query_data):
+        for idx, m in enumerate(self._query_data['monitors']):
 
-        for idx, m in enumerate(query_data['monitors']):
+            date_ini = datetime.strptime(self._query_data['search']['date_ini'] +
+                                         " " +
+                                         self._query_data['search']['time_ini'],
+                                         '%Y-%m-%d %H:%M:%S')
 
-            date_ini = query_data['search']['date_ini']
-            date_end = query_data['search']['date_end']
+            date_end = datetime.strptime(self._query_data['search']['date_end'] +
+                                         " " +
+                                         self._query_data['search']['time_end'],
+                                         '%Y-%m-%d %H:%M:%S')
 
             file_name = self.make_file_name(date_ini,
-                                            date_end + timedelta(days=query_data['search']['days']),
-                                            m['id'])
+                                            date_end,
+                                            m['name'])
 
-            logging.info('retrieve_all_samples %s ...',file_name)
+            logging.info('Retrieve all samples of monitor %s safe to file %s ...', m['name'], file_name)
 
             if not exists(file_name):
 
                 data_frames_days = []
-                for n in range(0, query_data['search']['days']):
+                for n in range(0, (date_end-date_ini).days+1):
+                    logging.info('Retrieve samples of monitor %s day %s ...', m['name'], n)
 
                     cursor = self._client.execute(date_ini, date_end, query, index=idx, index_type="monitors")
+
                     data_frames_page = []
-                    for r in cursor:
-                        data_frame = pd.read_csv(io.StringIO(r), sep=",")
-                        data_frames_page.append(data_frame)
+                    try:
+                        for p, r in enumerate(cursor):
+                            logging.info('Retrieve samples of monitor %s day %s page %s...', m['name'], n, p)
+
+                            data_frame = pd.read_csv(io.StringIO(r), sep=",")
+
+                            raw_file_name = self.make_file_name(date_ini, date_end, m['name'], p)
+                            if not exists(raw_file_name):
+                                data_frame.to_csv(raw_file_name, index=False, compression='infer')
+
+                            data_frames_page.append(data_frame)
+
+                    except:
+                        print("An exception occurred")
 
                     data_frame = pd.concat(data_frames_page, ignore_index=True, sort=False)
                     data_frame = self.filter(data_frame, m["name"], m["epsilon"])
@@ -182,38 +131,40 @@ class DataReductionPipeline(object):
                 data_frame = pd.concat(data_frames_days, ignore_index=True, sort=False)
                 data_frame['TimeStampLong'] = pd.to_datetime(data_frame['TimeStampLong'], unit='us')
 
-                file_name = "filtered/" + \
-                            str(m["id"]) + \
-                            "_" + \
-                            query_data['search']['date_ini'].strftime("%Y_%m_%d_%H_%M_%S") + \
-                            "_" + \
-                            date_end.strftime("%Y_%m_%d_%H_%M_%S") + \
-                            ".gz"
-
-
                 data_frame.to_csv(file_name, index=False, compression='infer')
 
-    def retrieve_magnitude(self, query_data):
+    def retrieve_magnitude(self):
 
-        for idx, m in enumerate(query_data['magnitudes']):
+        for idx, m in enumerate(self._query_data['magnitudes']):
 
-            date_ini = query_data['search']['date_ini']
-            date_end = query_data['search']['date_end']
+            date_ini = datetime.strptime(self._query_data['search']['date_ini'] +
+                                         " " +
+                                         self._query_data['search']['time_ini'],
+                                         '%Y-%m-%d %H:%M:%S')
+
+            date_end = datetime.strptime(self._query_data['search']['date_end'] +
+                                         " " +
+                                         self._query_data['search']['time_end'],
+                                         '%Y-%m-%d %H:%M:%S')
 
             file_name = self.make_file_name(date_ini,
-                                            date_end + timedelta(days=query_data['search']['days']),
-                                            m['id'])
+                                            date_end,
+                                            m['name'])
 
             if not exists(file_name):
 
                 data_frames_days = []
-                for n in range(0, query_data['search']['days']):
+                for n in range(0, (date_end-date_ini).days+1):
 
                     cursor = self._client.execute(date_ini, date_end, query, index=idx, index_type="magnitudes")
                     data_frames_page = []
-                    for r in cursor:
-                        data_frame = pd.read_csv(io.StringIO(r), sep=",")
-                        data_frames_page.append(data_frame)
+                    try:
+                        for r in cursor:
+                            data_frame = pd.read_csv(io.StringIO(r), sep=",")
+                            data_frames_page.append(data_frame)
+
+                    except:
+                        print("An exception occurred")
 
                     data_frame = pd.concat(data_frames_page, ignore_index=True, sort=False)
 
@@ -225,18 +176,25 @@ class DataReductionPipeline(object):
                 data_frame = pd.concat(data_frames_days, ignore_index=True, sort=False)
                 data_frame['TimeStampLong'] = pd.to_datetime(data_frame['TimeStampLong'], unit='us')
 
+                print(file_name)
                 data_frame.to_csv(file_name, index=False, compression='infer')
 
 
 if __name__ == "__main__":
 
-    logging.basicConfig( level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     logging.info('Data Reduction Pipeline Start Up!')
 
-    pipeline = DataReductionPipeline('test_1/')
-    pipeline.retrieve_all_samples(query)
-    pipeline.retrieve_magnitude(query)
-    data_frame = pipeline.merge_all_samples()
-    data_frame.to_csv("sample_test.csv", index=False)
+    parser = argparse.ArgumentParser(description='Monitor Manager Web Report Api.')
+    parser.add_argument('config', help='query configuration file')
+    parser.add_argument('name', help='query session name')
+    args = parser.parse_args()
 
+    with open(args.config) as json_file:
+        query = json.load(json_file)
+
+    pipeline = DataReductionPipeline(query, args.name)
+    pipeline.retrieve_all_samples()
+    pipeline.retrieve_magnitude()
+    pipeline.merge_all_samples()
 
