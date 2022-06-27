@@ -1,8 +1,8 @@
 {
     "search":
         {
-            "date_ini": "2021-08-01",
-            "date_end": "2021-08-31",
+            "date_ini": "2021-03-01",
+            "date_end": "2021-03-31",
             "time_ini": "20:00:00",
             "time_end": "07:00:00"
         },
@@ -13,62 +13,69 @@
                 "id": 3623,
                 "name": "MACS.AzimuthAxis.position",
                 "period": 200000,
-                "epsilon": 0.5
+                "epsilon": 0.5,
+                "type": "monitors"
             },
             {
                 "id": 3625,
                 "name": "MACS.AzimuthAxis.followingError",
                 "period": 200000,
-                "epsilon": 0.00002
+                "epsilon": 0.00002,
+                "type": "monitors"
             },
             {
                 "id": 3696,
                 "name": "MACS.ElevationAxis.position",
                 "period": 200000,
-                "epsilon": 0.5
+                "epsilon": 0.5,
+                "type": "monitors"
             },
             {
                 "id": 12128,
                 "name": "ECS.UpperShutter.actualPosition",
                 "period": 1000000,
-                "epsilon": 0.5
+                "epsilon": 0.5,
+                "type": "monitors"
             },
             {
                 "id": 667,
                 "name": "ECS.DomeRotation.actualPosition",
                 "period": 1000000,
-                "epsilon": 0.5
+                "epsilon": 0.5,
+                "type": "monitors"
             },
             {
                 "id": 8264,
                 "name": "EMCS.WeatherStation.meanWindSpeed",
                 "period": 1000000,
-                "epsilon": 0.5
+                "epsilon": 0.5,
+                "type": "monitors"
             },
             {
                 "id": 8265,
                 "name": "EMCS.WeatherStation.windDirection",
                 "period": 1000000,
-                "epsilon": 1.0
+                "epsilon": 1.0,
+                "type": "monitors"
             },
             {
                 "id": 8116,
                 "name": "OE.ObservingEngine.slowGuideErrorA",
                 "period": 1000000,
-                "epsilon": 4.8e-07
+                "epsilon": 4.8e-07,
+                "type": "monitors"
             },
             {
                 "id": 8117,
                 "name": "OE.ObservingEngine.slowGuideErrorB",
                 "period": 1000000,
-                "epsilon": 4.8e-07
-            }
-        ],
-
-    "magnitudes":
-        [
+                "epsilon": 4.8e-07,
+                "type": "monitors"
+            },
             {
                 "id": 4238,
+                "type": "magnitudes",
+                "period": 1000000,
                 "name": "OE.ObservingEngine.currentObservingState"
             }
         ]
